@@ -1,0 +1,8 @@
+POST http://localhost:8080/translate
+Content-Type: application/json
+
+{
+  "sourceLanguage": "de_DE",
+  "targetLanguages": ["en_US", "fr"],
+  "text": "Hallo, wie geht es Ihnen heute? Es ist ja echt ein wunderschöner Tag."
+}

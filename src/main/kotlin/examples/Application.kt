@@ -8,6 +8,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.stereotype.Component
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RestController
 import java.util.Locale
 import java.util.Locale.CHINESE
 import java.util.Locale.ENGLISH
@@ -29,24 +33,37 @@ fun main(args: Array<String>) {
     runApplication<Application>(*args)
 }
 
-@Component
-class TestApplicationRunner(
+@RestController
+@RequestMapping("/translate")
+class TranslationController(
     private val translator: Translator
-) : ApplicationRunner {
+) {
 
-    override fun run(args: ApplicationArguments?) {
-        val text = "Hallo, wie geht es Ihnen heute? Es ist ja echt ein wunderschöner Tag."
-
-        val total = measureTime {
-            listOf(ENGLISH, FRENCH, ITALIAN, JAPANESE, CHINESE)
-                .map { language -> language to supplyAsync { translator.translate(GERMAN, language, text) } }
-                .map { (language, supplier) -> language to supplier.get() }
-                .forEach { (language, translation) ->
-                    println("${languageName(language)}: $translation")
-                }
-        }
-        println("total: $total")
+    @PostMapping
+    fun translate(@RequestBody request: TranslationRequest): TranslationResponse {
+        val translations = request.targetLanguages.sortedBy { it.language }
+            .map { language -> language to asyncTranslate(request.sourceLanguage, language, request.text) }
+            .associate { (language, supplier) -> language to supplier.get() }
+        return TranslationResponse(translations)
     }
+
+    private fun asyncTranslate(sourceLanguage: Locale, language: Locale, text: String) =
+        supplyAsync { translator.translate(sourceLanguage, language, text) }
+
+    data class TranslationRequest(
+        val sourceLanguage: Locale,
+        val targetLanguages: Set<Locale>,
+        val text: String
+    ) {
+        init {
+            require(targetLanguages.isNotEmpty()) { "You need to provide at least one target language!" }
+            require(text.isNotBlank()) { "The text to be translated is not allowed to be blank!" }
+        }
+    }
+
+    data class TranslationResponse(
+        val translations: Map<Locale, String>
+    )
 }
 
 @Component
@@ -72,7 +89,7 @@ class Translator(
                 .content()
         }
 
-        log.info(
+        log.debug(
             buildString {
                 appendLine()
                 appendLine("S: $systemPrompt")

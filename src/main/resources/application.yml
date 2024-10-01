@@ -1,3 +1,8 @@
+logging:
+  level:
+    root: INFO
+    examples: DEBUG
+
 spring:
   ai:
     openai:
