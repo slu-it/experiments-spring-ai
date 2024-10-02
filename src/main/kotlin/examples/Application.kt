@@ -2,8 +2,6 @@ package examples
 
 import org.slf4j.LoggerFactory.getLogger
 import org.springframework.ai.chat.client.ChatClient
-import org.springframework.boot.ApplicationArguments
-import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -13,12 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.Locale
-import java.util.Locale.CHINESE
 import java.util.Locale.ENGLISH
-import java.util.Locale.FRENCH
-import java.util.Locale.GERMAN
-import java.util.Locale.ITALIAN
-import java.util.Locale.JAPANESE
 import java.util.concurrent.CompletableFuture.supplyAsync
 import kotlin.time.measureTime
 
@@ -41,10 +34,11 @@ class TranslationController(
 
     @PostMapping
     fun translate(@RequestBody request: TranslationRequest): TranslationResponse {
+        val original = mapOf(request.sourceLanguage to request.text)
         val translations = request.targetLanguages.sortedBy { it.language }
             .map { language -> language to asyncTranslate(request.sourceLanguage, language, request.text) }
             .associate { (language, supplier) -> language to supplier.get() }
-        return TranslationResponse(translations)
+        return TranslationResponse(original + translations)
     }
 
     private fun asyncTranslate(sourceLanguage: Locale, language: Locale, text: String) =
@@ -58,6 +52,8 @@ class TranslationController(
         init {
             require(targetLanguages.isNotEmpty()) { "You need to provide at least one target language!" }
             require(text.isNotBlank()) { "The text to be translated is not allowed to be blank!" }
+            require(!sourceLanguage.language.isNullOrBlank()) { "Source LANGUAGE must be specified!" }
+            require(targetLanguages.all { !it.language.isNullOrBlank() }) { "Target LANGUAGES must be specified!" }
         }
     }
 
@@ -74,8 +70,8 @@ class Translator(
     private val log = getLogger(javaClass)
 
     fun translate(sourceLocale: Locale, targetLocale: Locale, text: String): String {
-        val sourceLanguage = languageName(sourceLocale)
-        val targetLanguage = languageName(targetLocale)
+        val sourceLanguage = languageDescription(sourceLocale)
+        val targetLanguage = languageDescription(targetLocale)
 
         val systemPrompt = "You are a $sourceLanguage to $targetLanguage translator."
         val userPrompt = "Translate: $text"
@@ -103,5 +99,10 @@ class Translator(
     }
 }
 
-private fun languageName(locale: Locale): String =
-    locale.getDisplayLanguage(ENGLISH)
+private fun languageDescription(locale: Locale): String =
+    buildString {
+        append(locale.getDisplayLanguage(ENGLISH))
+        if (!locale.country.isNullOrBlank()) {
+            append(" (${locale.getDisplayCountry(ENGLISH)})")
+        }
+    }

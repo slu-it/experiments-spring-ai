@@ -3,6 +3,6 @@ Content-Type: application/json
 
 {
   "sourceLanguage": "de_DE",
-  "targetLanguages": ["en_US", "fr"],
-  "text": "Hallo, wie geht es Ihnen heute? Es ist ja echt ein wunderschöner Tag."
+  "targetLanguages": ["en_AU", "en_GB", "en_US", "fr", "es"],
+  "text": "Ein Capybara ist gestern in einem Aufzug stecken geblieben."
 }
